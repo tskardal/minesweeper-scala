@@ -37,5 +37,11 @@ class MinesweeperTest extends FunSuite {
     val safeCells = game.board.values.count(_ == Safe)
     assert(safeCells === 5 * 5)
   }
+  
+  test("revealing a cell surrounded by two mines") {
+    val game = new Minesweeper(3, 5)
+    game.reveal(Point(0, 0))
+    assert(game.board(Point(0,0)) == Unsafe(2))
+  }
 }
   
