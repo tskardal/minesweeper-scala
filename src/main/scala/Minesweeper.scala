@@ -27,9 +27,10 @@ object Minesweeper {
   
   def reveal(p: Point, board: Board): Board = reveal(Set(p), Set.empty, board)
   
-  def flag(p: Point, board: Board): Board = {
-    val old = board.cells(p)
-    Board(board.width, board.height, board.cells + (p -> Flag(old)))
+  def flag(p: Point, board: Board): Board = board.cells(p) match {
+      case Unknown(covers) => Board(board.width, board.height, board.cells + (p -> Flag(covers)))
+      case Flag(covers) => Board(board.width, board.height, board.cells + (p -> Unknown(covers)))
+      case _ => board
   }
   
   @tailrec

@@ -48,11 +48,41 @@ class MinesweeperTest extends FunSuite {
   }
   
   test("flagging an unknown cell") {
-    val board = Minesweeper.generate(5, 5, 5)
-    val point: Point = Point(0, 0)
-    val prev = board.cells(point)
+    val cells = Map(
+      Point(0, 0) -> Unknown(Safe),
+      Point(0, 1) -> Unknown(Mine),
+      Point(1, 0) -> Unknown(Safe),
+      Point(1, 1) -> Unknown(Mine)
+    )
+    val board: Board = Board(2, 2, cells)
+    val point: Point = Point(0, 0)    
     val result = Minesweeper.flag(point, board)
-    assert(result.cells(point) == Flag(prev))
+    assert(result.cells(point) == Flag(Safe))
+  }
+
+  test("flagging a flagged cell removes the flag") {
+    val cells = Map(
+      Point(0, 0) -> Flag(Safe),
+      Point(0, 1) -> Unknown(Mine),
+      Point(1, 0) -> Unknown(Safe),
+      Point(1, 1) -> Unknown(Mine)
+    )
+    val point: Point = Point(0, 0)
+    val board: Board = Board(2, 2, cells)
+    val result = Minesweeper.flag(point, board)
+    assert(result.cells(point) == Unknown(Safe))
+  }
+  
+  test("flagging a revealed cell results in the same board") {
+    val cells = Map(
+      Point(0, 0) -> Safe,
+      Point(0, 1) -> Unknown(Mine),
+      Point(1, 0) -> Unknown(Safe),
+      Point(1, 1) -> Unknown(Mine)
+    )
+    val board: Board = Board(2, 2, cells)
+    val result = Minesweeper.flag(Point(0, 0), board)
+    assert(board == result)
   }
 }
   
