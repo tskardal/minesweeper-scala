@@ -2,11 +2,12 @@ import scala.annotation.tailrec
 import scala.util.Random
 
 trait Cell
-case object Mine extends Cell
-case object Safe extends Cell
-case class Unknown(covers: Cell) extends Cell
-case class Flag(covers: Cell) extends Cell
-case class Unsafe(surrounding: Int) extends Cell
+trait Revealed extends Cell
+case object Mine extends Revealed
+case object Safe extends Revealed
+case class Unsafe(surrounding: Int) extends Revealed
+case class Unknown(covers: Revealed) extends Cell
+case class Flag(covers: Revealed) extends Cell
 
 case class Point(x: Int, y: Int)
 case class Board(width: Int, height: Int, cells: Map[Point, Cell])
@@ -14,15 +15,10 @@ case class Board(width: Int, height: Int, cells: Map[Point, Cell])
 object Minesweeper {
   
   def generate(numberOfMines: Int, width: Int, height: Int): Board = {
-    val allPositions = positions(width, height)
-    val positionedMines = Random.shuffle(allPositions)
-      .take(numberOfMines)
-      .map(_ -> Unknown(Mine))
-    
-    val mineMap = Map(positionedMines: _*)    
-    val cells = allPositions.filterNot(mineMap.contains).map(_ -> Unknown(Safe))
-
-    Board(width, height, mineMap ++ cells)
+    val rndPos = Random.shuffle(positions(width, height))
+    val mines = rndPos.take(numberOfMines).map(_ -> Unknown(Mine))
+    val safes = rndPos.drop(numberOfMines).map(_ -> Unknown(Safe))
+    Board(width, height, mines.toMap ++ safes)
   }
   
   def reveal(p: Point, board: Board): Board = reveal(Set(p), Set.empty, board)
@@ -32,30 +28,28 @@ object Minesweeper {
       case Flag(covers) => Board(board.width, board.height, board.cells + (p -> Unknown(covers)))
       case _ => board
   }
-  
+
   @tailrec
-  private def reveal(ps: Set[Point], revealed: Set[Point], board: Board): Board  = {
+  private def reveal(ps: Set[Point], revealed: Set[Point], board: Board): Board = {
     val remaining = ps.diff(revealed)
-    if (remaining.isEmpty) board
-    else {
-      val current = remaining.head
-      val neighs = findNeighbours(current, board)
-      val surroundedBy = neighs.map(board.cells(_)).map {
-        case Unknown(o) => o
-        case Flag(o) => o
-        case c:Cell => c   
-      }.count {
-        case Mine => true
-        case _ => false
+    remaining.toList match {
+      case Nil => board
+      case (r: Revealed) :: rest => reveal(rest.toSet, revealed + r, board)
+      case c :: rest => {
+        val neighs = findNeighbours(c, board)
+        val nearbyMines = neighs.count {
+          case (p, Mine) => true
+          case (p, Unknown(Mine)) => true
+          case (p, c:Cell) => false
+        }
+        val afterReveal = if (nearbyMines > 0) Unsafe(nearbyMines) else Safe
+        val newBoard = Board(board.width, board.height, board.cells + (c -> afterReveal))
+        reveal(
+          remaining ++ neighs.map { case (p, c) => p },
+          revealed + c,
+          newBoard)
       }
-
-      val _ps = remaining ++ neighs
-      val _revealed = revealed + current 
-      val newCell = if (surroundedBy > 0) Unsafe(surroundedBy) else Safe
-      val _board = new Board(board.width, board.height , board.cells + (current -> newCell))
-
-      reveal(_ps, _revealed, _board)
-    }      
+    }
   }
   
   private def findNeighbours(p: Point, board: Board) = for {
@@ -65,7 +59,8 @@ object Minesweeper {
     ny = p.y + dy
     if nx >= 0 && nx < board.width
     if ny >= 0 && ny < board.height
-  } yield Point(nx, ny)
+    point = Point(nx, ny)
+  } yield (point, board.cells(point))
   
   private def positions(width: Int, height: Int) = {
     for {
