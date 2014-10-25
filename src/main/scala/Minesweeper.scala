@@ -9,41 +9,28 @@ case class Flag(covers: Cell) extends Cell
 case class Unsafe(surrounding: Int) extends Cell
 
 case class Point(x: Int, y: Int)
-
-/** Minesweeper
-  * 
-  * Brett som består av celler
-  * Celle angis av x- og y-koordinat
-  * Hvis en celle er safe må vi ekspandere rekursivt til vi treffer en unsafe
-  * 
-  */
-class Minesweeper(width: Int, height: Int) {
-  
-  private def emptyBoard: Map[Point, Cell] = {
-    val tmp = for {
-      x <- 0 until width
-      y <- 0 until height
-    } yield Point(x, y) -> Unknown(Safe)
-    Map(tmp: _*)
-  }    
-}
-
-case class Board(val width: Int, val height: Int, cells: Map[Point, Cell])
+case class Board(width: Int, height: Int, cells: Map[Point, Cell])
 
 object Minesweeper {
   
-  def generate(numberOfMines: Int, width: Int, height: Int): Minesweeper = {    
-    val mines =  Stream.continually(Mine).take(numberOfMines)
-    val random = Random.shuffle(mines)
+  def generate(numberOfMines: Int, width: Int, height: Int): Board = {
+    val allPositions = positions(width, height)
+    val positionedMines = Random.shuffle(allPositions)
+      .take(numberOfMines)
+      .map(_ -> Unknown(Mine))
     
-    val hoist = Random.shuffle(positions(width, height))
-      .take(5)
-      .map(p => p -> Mine) // _ -> Mine
+    val mineMap = Map(positionedMines: _*)    
+    val cells = allPositions.filterNot(mineMap.contains).map(_ -> Unknown(Safe))
 
-    null
+    Board(width, height, mineMap ++ cells)
   }
   
   def reveal(p: Point, board: Board): Board = reveal(Set(p), Set.empty, board)
+  
+  def flag(p: Point, board: Board): Board = {
+    val old = board.cells(p)
+    Board(board.width, board.height, board.cells + (p -> Flag(old)))
+  }
   
   @tailrec
   private def reveal(ps: Set[Point], revealed: Set[Point], board: Board): Board  = {
